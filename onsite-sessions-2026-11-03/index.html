@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>ON-site Sessions</title>
+  <meta name="description" content="Recorded study sessions from the ON-site club.">
+  <!-- how shared links (invites) look on WhatsApp / Instagram -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="ON-site">
+  <meta property="og:title" content="Join me on ON-site 📚">
+  <meta property="og:description" content="Free recorded study sessions for STEM students. Create your account with this link.">
+  <meta property="og:image" content="https://on.site.je/img/icon-512.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="theme-color" content="#0E0E0E">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="apple-touch-icon" href="img/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ON-site">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Yellowtail&family=Alexandria:wght@400..900&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
+  <style>body{margin:0;background:#0E0E0E;color:#BDBDBD;font-family:system-ui,sans-serif}.boot{min-height:100vh;min-height:100dvh;display:grid;place-items:center;align-content:center;gap:18px}
+    .boot img{width:84px;height:84px;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 22px rgba(46,107,255,.7));animation:bootp 1.6s ease-in-out infinite}
+    .boot i{display:block;width:120px;height:3px;border-radius:3px;background:linear-gradient(90deg,#2E6BFF,#5FD12E);transform-origin:left;animation:bootb 1.4s ease-in-out infinite}
+    @keyframes bootp{50%{transform:scale(1.07);filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 34px rgba(46,107,255,1))}}
+    @keyframes bootb{0%{transform:scaleX(.1)}50%{transform:scaleX(1)}100%{transform:scaleX(.1);transform-origin:right}}
+    @media (prefers-reduced-motion:reduce){.boot img,.boot i{animation:none}}</style>
+</head>
+<body>
+  <button class="skip" onclick="document.getElementById('main')?.focus()">Skip to content</button>
+  <div id="app"><div class="boot" role="status" aria-label="Loading"><img src="img/onsite-logo-192.png" alt=""><i></i></div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!--
+    Loader: asks the server which version is live (never from cache), then loads
+    the CSS and JS with ?v=<version>. A new upload therefore always loads fresh files.
+    On every deploy: change the number in version.json (and FALLBACK below).
+  -->
+  <script>
+  (function () {
+    var FALLBACK = "2026-11-03.1";
+    var FILES = ["js/config.js", "js/i18n.js", "js/i18n-plus.js", "js/api.js", "js/player.js", "js/qr.js", "js/fx.js", "js/plus.js", "js/invite.js", "js/live.js", "js/app.js", "js/update.js"];
+    function load(v) {
+      window.ONSITE_VERSION = v;
+      ["css/style.css", "css/fx.css"].forEach(function (href) {
+        var css = document.createElement("link");
+        css.rel = "stylesheet"; css.href = href + "?v=" + encodeURIComponent(v);
+        document.head.appendChild(css);
+      });
+      FILES.forEach(function (f) {
+        var s = document.createElement("script");
+        s.src = f + "?v=" + encodeURIComponent(v);
+        s.async = false; // keep the order above
+        document.body.appendChild(s);
+      });
+    }
+    var done = false;
+    function go(v) { if (!done) { done = true; load(v || FALLBACK); } }
+    setTimeout(function () { go(); }, 4000); // slow network: don't wait forever
+    try {
+      fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : {}; })
+        .then(function (j) { go(j && j.version); })
+        .catch(function () { go(); });
+    } catch (e) { go(); }
+  })();
+  </script>
+</body>
+</html>
