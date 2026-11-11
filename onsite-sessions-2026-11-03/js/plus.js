@@ -259,6 +259,7 @@ const PLUS = (() => {
         <span class="lvl-xp"><b data-count="${lv.xp}">${num(lv.xp)}</b> XP · ${t("xpToNext", { n: num(lv.span - lv.into), l: num(lv.n + 1) })}</span>
         <span class="bar lvl-bar"><span style="width:${lv.pct}%"></span></span>
         <small class="lvl-how">${t("xpHow")}</small>
+        <span class="lvl-actions">${EXTRA.shareBtn()}</span>
       </div></section>`;
   }
   function badgeGrid() {
@@ -763,7 +764,7 @@ const PLUS = (() => {
   return {
     restore, saveSnap, afterLoad, loadExtras, netPill, setOffline,
     annStack, paintAnnStack, cheerAnn, annTab, bindAnn,
-    levelCard, progressExtras, bindProgress, avatarLevel, checkBadges, onComplete,
+    levelCard, progressExtras, bindProgress, avatarLevel, checkBadges, onComplete, myStats, level, badges,
     homeRows, newCount, searchBtn, openSearch, notesTools, bindNotes,
     insightsTab, bindInsights, viewerDrop, drawViewerDrop,
     installChip, accountExtras, bindAccount,

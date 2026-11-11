@@ -190,3 +190,25 @@ Object.assign(STRINGS.ar, {
   peopleShown: "{n} معروض", joined: "تاريخ التسجيل", invitesCol: "الدعوات", invitedByShort: "دعاه {n}",
   sharedNumber: "رقم مشترك", sharedNumberHelp: "حساب آخر له نفس رقم الهاتف (أُنشئ قبل قاعدة الحساب الواحد).",
 });
+
+// ---- share card + backup
+Object.assign(STRINGS.en, {
+  shareCard: "Share my card", shareCardTitle: "Your ON-site card", download: "Download",
+  shareCardSub: "Post it to your story. Friends who scan the code sign up with your invite link.",
+  shareCardSubPlain: "Post it to your story so friends can find ON-site.",
+  shareCardText: "I'm studying on ON-site 📚 Join me: {u}", cardMaking: "Making your card…", cardSaved: "Saved to your downloads.",
+  cardStudying: "I'm studying on", cardFinished: "sessions finished", cardHours: "hours watched", cardStreak: "day streak",
+  cardBadges: "{n} badges earned", cardJoin: "Scan to join with my link", cardJoinPlain: "Scan to join",
+  backup: "Download backup", backupMaking: "Preparing the backup…",
+  backupDone: "Backup saved ({n} members). Keep the file private: it has phone numbers.",
+});
+Object.assign(STRINGS.ar, {
+  shareCard: "شارك بطاقتي", shareCardTitle: "بطاقتك في ON-site", download: "تنزيل",
+  shareCardSub: "انشرها في الستوري. من يمسح الكود يسجّل برابط دعوتك.",
+  shareCardSubPlain: "انشرها في الستوري ليعرف أصدقاؤك ON-site.",
+  shareCardText: "أنا أذاكر على ON-site 📚 انضم معي: {u}", cardMaking: "جارٍ تجهيز بطاقتك…", cardSaved: "تم الحفظ في التنزيلات.",
+  cardStudying: "أنا أذاكر على", cardFinished: "حصص منتهية", cardHours: "ساعات مشاهدة", cardStreak: "أيام متتالية",
+  cardBadges: "{n} أوسمة", cardJoin: "امسح الكود وانضم برابطي", cardJoinPlain: "امسح الكود وانضم",
+  backup: "تنزيل نسخة احتياطية", backupMaking: "جارٍ تجهيز النسخة الاحتياطية…",
+  backupDone: "تم حفظ النسخة الاحتياطية ({n} عضو). احتفظ بالملف لنفسك: فيه أرقام هواتف.",
+});

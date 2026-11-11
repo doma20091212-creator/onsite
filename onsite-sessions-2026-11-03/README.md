@@ -2,7 +2,7 @@
 
 ## Invite links & prizes (November 2026)
 
-- **Invite page** (new tab in the menu): each member presses **Get your link**, copies it or shares it on WhatsApp. When a friend creates an account with that link, the inviter gets **100 points** (change it in Manage → Invites). The leaderboard is visible to everyone (first name + initial), and the top 3 win the prizes you set.
+- **Invite page** (new tab in the menu): each member presses **Get your link**, copies it or shares it on WhatsApp. When a friend creates an account with that link, the inviter gets **10 points** (change it in Manage → Invites). The leaderboard is visible to everyone (first name + initial), and the top 3 win the prizes you set.
 - **One account per phone number:** a number that already has an account can't sign up again. 01012345678, +201012345678 and 00201012345678 all count as the same number.
 - **Manage → Invites** (admin): prizes, points per friend, contest start/end dates, "Start a new round", the leaderboard with full names and WhatsApp buttons, and a log of every invite where you can **Reject** fake ones (and undo).
 - **Manage → People:** a **Joined** column (date and time each account was made), invites per person, who invited them, a ⚠ warning on accounts that share a number from before the rule, and a **Sort** menu (newest, oldest, name, school, most invites, most finished, recently active).
@@ -32,7 +32,7 @@ Note: phone numbers aren't confirmed by SMS, so someone could type a made-up num
 
 Notes:
 - Installing as an app and the offline copy need **https** (on.site.je already uses it).
-- Next time you change files, change the number in `version.json`, the `FALLBACK` in `index.html`, and `VERSION` at the top of `sw.js`.
+- Next time you change files, change the number in `version.js`, the `FALLBACK` in `index.html`, and `VERSION` at the top of `sw.js`. (The site reads `version.js`, not `version.json`: InfinityFree's bot check blocks the site from reading `.json` files in the background.)
 - Free Supabase projects pause after 7 days with nobody using the site. Normal club use keeps it awake; if it ever pauses, press **Restore** in the Supabase dashboard.
 
 ---
@@ -146,11 +146,11 @@ A session is marked finished only when the student has actually played 90% of it
 ## Deploying updates (InfinityFree) — no more hard refresh
 
 The site now loads its CSS/JS through a small loader in `index.html` that first reads
-`version.json` (never cached) and then loads every file as `file.js?v=<version>`.
+`version.js` (never cached) and then loads every file as `file.js?v=<version>`.
 
 Every time you upload changes:
-1. Open `version.json` and change the number, e.g. `2026-10-24.1` → `2026-10-24.2`.
-2. Upload the changed files **and** `version.json` to `htdocs`.
+1. Open `version.js` and change the number, e.g. `2026-10-24.1` → `2026-10-24.2`.
+2. Upload the changed files **and** `version.js` to `htdocs`.
 
 Visitors get the new files the next time they open the site. Anyone who already has
 it open sees a "A new version of the site is ready · Refresh" bar.

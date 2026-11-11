@@ -167,7 +167,7 @@ create trigger on_auth_user_created_referral
 -- ---------- Contest settings (one row, edited by admins in Manage → Invites) ----------
 create table if not exists public.referral_contest (
   id                 int primary key default 1 check (id = 1),
-  points_per_invite  int not null default 100 check (points_per_invite between 1 and 10000),
+  points_per_invite  int not null default 10 check (points_per_invite between 1 and 10000),
   prize1             text not null default '' check (length(prize1) <= 120),
   prize2             text not null default '' check (length(prize2) <= 120),
   prize3             text not null default '' check (length(prize3) <= 120),

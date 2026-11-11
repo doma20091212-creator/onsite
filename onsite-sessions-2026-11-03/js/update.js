@@ -1,4 +1,5 @@
-// Shows a "new version" bar when version.json changes while the site is open.
+// Shows a "new version" bar when version.js changes while the site is open.
+// (Loaded as a script, not fetch(): InfinityFree's bot check answers fetch() with its own page.)
 (function () {
   const current = window.ONSITE_VERSION;
   if (!current) return;
@@ -8,10 +9,16 @@
     if (shown || Date.now() - last < 60000) return; // at most once a minute
     last = Date.now();
     try {
-      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
-      if (!r.ok) return;
-      const j = await r.json();
-      if (j && j.version && j.version !== current) show();
+      const v = await new Promise((resolve) => {
+        const s = document.createElement("script");
+        window.ONSITE_SET_VERSION = (x) => resolve(x);        // version.js calls this
+        s.src = "version.js?t=" + Date.now();
+        s.onerror = () => resolve(null);
+        setTimeout(() => resolve(null), 8000);
+        document.head.appendChild(s);
+        s.onload = () => setTimeout(() => s.remove(), 0);
+      });
+      if (v && v !== current) show();
     } catch {}
   }
 

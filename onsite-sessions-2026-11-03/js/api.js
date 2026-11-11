@@ -249,7 +249,7 @@ function demoApi() {
         { referred_id: "demo-5", referrer_id: "demo-2", code: "YOUSEF", status: "ok", created_at: h(8) },
         { referred_id: "demo-t1", referrer_id: "demo-s2", code: "NOUR22", status: "ok", created_at: h(30) },
       ];
-      d.contest = { id: 1, points_per_invite: 100, prize1: "AirPods 🎧", prize2: "Scientific calculator", prize3: "ON-site hoodie", starts_at: null, ends_at: new Date(Date.now() + 12 * 864e5 + 5 * 36e5).toISOString() };
+      d.contest = { id: 1, points_per_invite: 10, prize1: "AirPods 🎧", prize2: "Scientific calculator", prize3: "ON-site hoodie", starts_at: null, ends_at: new Date(Date.now() + 12 * 864e5 + 5 * 36e5).toISOString() };
     }
     // a couple of fresh sessions so "New this week" has something in it
     d.sessions.forEach((s, i) => { if (i % 5 === 2 && Date.now() - new Date(s.created_at) > 10 * 864e5 && !s._fresh) { s.created_at = new Date(Date.now() - (i % 4 + 1) * 864e5).toISOString(); s._fresh = 1; } });

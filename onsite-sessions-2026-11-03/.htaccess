@@ -1,0 +1,36 @@
+# ON-site Sessions: cache rules so a new upload shows up without a hard refresh.
+# The page, its code and version.json are always re-checked with the server.
+# Images can be cached for a week (they rarely change).
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType text/javascript "access plus 0 seconds"
+  ExpiresByType application/json "access plus 0 seconds"
+  ExpiresByType image/png "access plus 7 days"
+  ExpiresByType image/jpeg "access plus 7 days"
+  ExpiresByType image/svg+xml "access plus 7 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html?|css|js|json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+    Header unset Expires
+  </FilesMatch>
+  <FilesMatch "^(index\.html|version\.json|version\.js)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+  </FilesMatch>
+</IfModule>
+
+# App install + offline helper: the manifest needs the right type, and the offline
+# helper (sw.js) must always be re-checked so updates reach everyone.
+AddType application/manifest+json .webmanifest
+<IfModule mod_headers.c>
+  <FilesMatch "^(sw\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+    Header set Service-Worker-Allowed "/"
+  </FilesMatch>
+</IfModule>

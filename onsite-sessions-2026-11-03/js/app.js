@@ -919,6 +919,7 @@ function peopleTab() {
       <input class="search" type="search" id="pq" value="${esc(M.pq || "")}" placeholder="${t("searchPeople")}" aria-label="${t("searchPeople")}">
       <label class="sort-pick"><span>${t("sortBy")}</span><select id="psort">${sortOpts.map((k) => `<option value="${k}" ${k === sortKey ? "selected" : ""}>${t("sort_" + k)}</option>`).join("")}</select></label>
       <span class="srow-meta people-n">${t("peopleShown", { n: num(list.length) })}</span>
+      ${EXTRA.backupBtn()}
     </div>
     <div class="table-wrap"><table class="ptable">
     <thead><tr><th>${t("fullName")}</th><th>${t("joined")}</th>${hasSchools() ? `<th>${t("school")}</th>` : ""}${M.phones ? `<th>${t("phone")}</th>` : ""}${M.referrals ? `<th>${t("invitesCol")}</th>` : ""}<th>${t("role")}</th><th>${t("teachesSubject")}</th><th>${t("completion")}</th><th>${t("lastSeen")}</th></tr></thead>
@@ -932,7 +933,7 @@ function peopleTab() {
         <td class="joined-cell" title="${esc(fmtJoined(p.created_at))}"><span>${esc(fmtJoined(p.created_at))}</span><small>${esc(agoText(p.created_at))}</small></td>
         ${hasSchools() ? `<td class="school-cell"><bdi>${esc(schoolLabel(p.school) || "—")}</bdi></td>` : ""}
         ${M.phones ? `<td><span class="ph-cell">${M.phones[p.id] ? phoneText(M.phones[p.id]) + waLink(M.phones[p.id], p.full_name || "", t("helloMsg", { n: (p.full_name || "").split(" ")[0] })) : `<small class="no-ph">—</small>`}</span>${shared.has(p.id) ? `<small class="shared-ph" title="${esc(t("sharedNumberHelp"))}">⚠ ${t("sharedNumber")}</small>` : ""}</td>` : ""}
-        ${M.referrals ? `<td class="inv-cell">${invites[p.id] ? `<b>${num(invites[p.id])}</b> <small>· ${num(invites[p.id] * (S.contest?.points_per_invite || 100))} ${t("pts")}</small>` : `<small class="no-ph">0</small>`}</td>` : ""}
+        ${M.referrals ? `<td class="inv-cell">${invites[p.id] ? `<b>${num(invites[p.id])}</b> <small>· ${num(invites[p.id] * (S.contest?.points_per_invite || 10))} ${t("pts")}</small>` : `<small class="no-ph">0</small>`}</td>` : ""}
         <td><select data-role ${self ? "disabled" : ""} aria-label="${t("role")}">${["student", "teacher", "admin"].map((r) => `<option value="${r}" ${p.role === r ? "selected" : ""}>${t(r)}</option>`).join("")}</select></td>
         <td><select data-subj ${p.role !== "teacher" ? "disabled" : ""} aria-label="${t("teachesSubject")}"><option value="">—</option>${S.subjects.map((s) => `<option value="${s.id}" ${p.subject_id === s.id ? "selected" : ""}>${esc(I18N.subjectName(s))}</option>`).join("")}</select></td>
         <td><span class="bar thin"><span style="width:${pct}%"></span></span> ${num(done)}/${num(total)}</td>
@@ -1293,9 +1294,10 @@ async function route() {
   const fxKey = S.user ? path + (parts[0] === "manage" && !parts[1] ? "#" + M.tab : "") : "auth/" + (parts[0] || "login");
   await FX.beforeRender(fxKey);
   if (my !== routing) return;
-  window.scrollTo(0, 0);
+  const toTop = () => window.scrollTo(0, 0);      // after the old page has been captured for the morph
 
   if (!S.user) {
+    toTop();
     if (parts[0] === "signup") viewSignup();
     else if (parts[0] === "forgot") viewForgot();
     else if (parts[0] === "join") { savePendingRef(parts[1]); viewSignup(); }       // came from someone's invite link
@@ -1306,14 +1308,15 @@ async function route() {
     } else viewLogin();
     return FX.afterRender(fxKey);
   }
-  if (parts[0] === "reset") { viewReset(); return FX.afterRender(fxKey); }
+  if (parts[0] === "reset") { toTop(); viewReset(); return FX.afterRender(fxKey); }
   if (["login", "signup", "forgot"].includes(parts[0])) return go("/");
   if (parts[0] === "join") { clearPendingRef(); toast(t("alreadyMember")); return go("/invite"); }
-  if (infoMissing()) { viewInfoGate(); return FX.afterRender("gate"); }
+  if (infoMissing()) { toTop(); viewInfoGate(); return FX.afterRender("gate"); }
   // Manage loads extra data: show a skeleton while it does
-  if (parts[0] === "invite" && !document.querySelector(".inv-hero")) $app.innerHTML = shell(FX.skeleton("home"), "invite");
+  if (parts[0] === "invite" && !document.querySelector(".inv-hero")) { toTop(); $app.innerHTML = shell(FX.skeleton("home"), "invite"); }
   if (parts[0] === "manage") {
     const mb = document.getElementById("mbody");
+    toTop();
     if (mb) mb.innerHTML = FX.skeleton("list");
     else $app.innerHTML = shell(FX.skeleton("manage"), "manage");
   }
@@ -1334,17 +1337,23 @@ async function route() {
     default: html = viewHome();
   }
   if (my !== routing) return;
-  $app.innerHTML = html;
-  document.title = `${CFG.CLUB_NAME} Sessions`;
-  if (parts[0] === "subject") bindSubject();
-  if (parts[0] === "watch") bindWatch(parts[1]);
-  if (parts[0] === "manage") { if (parts[1] === "live" && parts[2]) { if (isStaff()) bindLiveDetail(parts[2]); } else bindManage(); }
-  if (parts[0] === "checkin") bindCheckin(parts[1]);
-  if (parts[0] === "account") bindAccount();
-  if (parts[0] === "progress") PLUS.bindProgress();
-  if (parts[0] === "invite") bindInvite();
-  FX.afterRender(fxKey);
-  if (!parts[0] || parts[0] === "subject") PLUS.cheerAnn($app);
+  // Draw the new page. FEEL.commit morphs into it when it can (subject card → subject page,
+  // thumbnail → player); otherwise this just runs.
+  await FEEL.commit(fxKey, () => {
+    if (my !== routing) return;
+    $app.innerHTML = html;
+    toTop();
+    document.title = `${CFG.CLUB_NAME} Sessions`;
+    if (parts[0] === "subject") bindSubject();
+    if (parts[0] === "watch") bindWatch(parts[1]);
+    if (parts[0] === "manage") { if (parts[1] === "live" && parts[2]) { if (isStaff()) bindLiveDetail(parts[2]); } else bindManage(); }
+    if (parts[0] === "checkin") bindCheckin(parts[1]);
+    if (parts[0] === "account") bindAccount();
+    if (parts[0] === "progress") PLUS.bindProgress();
+    if (parts[0] === "invite") bindInvite();
+    FX.afterRender(fxKey);
+    if (!parts[0] || parts[0] === "subject") PLUS.cheerAnn($app);
+  });
 }
 
 async function afterSignIn() {

@@ -80,7 +80,7 @@ const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="cu
 const SHARE = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
 const codeKey = () => "onsite.refcode." + (S.user?.id || "x");
 const inviteUrl = (code) => location.origin + location.pathname + "#/join/" + code;
-const ppi = () => +(INV.contest?.points_per_invite || CFG.POINTS_PER_INVITE || 100);
+const ppi = () => +(INV.contest?.points_per_invite || CFG.POINTS_PER_INVITE || 10);
 const contestOpen = (c = INV.contest) => !!c && (!c.ends_at || new Date(c.ends_at) > new Date()) && (!c.starts_at || new Date(c.starts_at) <= new Date());
 const hasPrizes = (c = INV.contest) => !!c && [c.prize1, c.prize2, c.prize3].some((x) => String(x || "").trim());
 
@@ -108,6 +108,7 @@ function linkBox() {
     <div class="inv-share">
       <a class="btn inv-wa" href="https://wa.me/?text=${encodeURIComponent(t("shareMsg", { u: url }))}" target="_blank" rel="noopener">${WA_ICON} WhatsApp</a>
       ${navigator.share ? `<button type="button" class="btn" id="invShare">${SHARE} ${t("share")}</button>` : ""}
+      ${EXTRA.shareBtn("btn")}
       <span class="inv-code" title="${esc(t("yourCode"))}">${t("yourCode")}: <b dir="ltr">${esc(INV.code)}</b></span>
     </div></div>`;
 }

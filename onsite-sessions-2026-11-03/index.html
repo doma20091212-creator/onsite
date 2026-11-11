@@ -42,12 +42,12 @@
   <!--
     Loader: asks the server which version is live (never from cache), then loads
     the CSS and JS with ?v=<version>. A new upload therefore always loads fresh files.
-    On every deploy: change the number in version.json (and FALLBACK below).
+    On every deploy: change the number in version.js (and FALLBACK below, and VERSION in sw.js).
   -->
   <script>
   (function () {
-    var FALLBACK = "2026-11-03.1";
-    var FILES = ["js/config.js", "js/i18n.js", "js/i18n-plus.js", "js/api.js", "js/player.js", "js/qr.js", "js/fx.js", "js/plus.js", "js/invite.js", "js/live.js", "js/app.js", "js/update.js"];
+    var FALLBACK = "2026-11-10.1";
+    var FILES = ["js/config.js", "js/i18n.js", "js/i18n-plus.js", "js/api.js", "js/player.js", "js/qr.js", "js/fx.js", "js/feel.js", "js/plus.js", "js/invite.js", "js/extra.js", "js/live.js", "js/app.js", "js/update.js"];
     function load(v) {
       window.ONSITE_VERSION = v;
       ["css/style.css", "css/fx.css"].forEach(function (href) {
@@ -65,11 +65,15 @@
     var done = false;
     function go(v) { if (!done) { done = true; load(v || FALLBACK); } }
     setTimeout(function () { go(); }, 4000); // slow network: don't wait forever
+    // Ask the server which version is live. It's a tiny script (version.js) rather than a
+    // fetch() because InfinityFree's bot check answers fetch() with its own page.
+    window.ONSITE_SET_VERSION = function (v) { go(v); };
     try {
-      fetch("version.json?t=" + Date.now(), { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : {}; })
-        .then(function (j) { go(j && j.version); })
-        .catch(function () { go(); });
+      var vs = document.createElement("script");
+      vs.src = "version.js?t=" + Date.now();
+      vs.onerror = function () { go(); };
+      vs.onload = function () { setTimeout(function () { go(); }, 50); };   // loaded but didn't report: use FALLBACK
+      document.head.appendChild(vs);
     } catch (e) { go(); }
   })();
   </script>

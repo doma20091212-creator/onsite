@@ -26,7 +26,7 @@ const FX = (() => {
       const x = Math.round(((i + 0.5) / n) * 100 + (Math.random() * 8 - 4));
       const dur = 26 + Math.round(Math.random() * 22), delay = Math.round(Math.random() * dur);
       const size = 22 + Math.round(Math.random() * 46), rot = Math.round(Math.random() * 40 - 20);
-      const hue = ["var(--blue-edge)", "var(--green-edge)", "#B79BFF", "#5CE1FF"][i % 4];
+      const hue = ["var(--blue-edge)", "#A9C9FF", "#B79BFF", "#5CE1FF"][i % 4];
       return `<span class="fx-float" style="--x:${x}%;--d:${dur}s;--delay:-${delay}s;--fs:${size}px;--rot:${rot}deg;--c:${hue}">${g}</span>`;
     }).join("");
     bg.innerHTML = `<span class="fx-blob b1"></span><span class="fx-blob b2"></span><span class="fx-blob b3"></span><span class="fx-dots"></span>${floats}`;
@@ -55,6 +55,7 @@ const FX = (() => {
   // Called before a new page replaces the old one: the old page slides away first.
   async function beforeRender(path) {
     if (lastPath === null || path === lastPath || calm()) return;
+    if (FEEL.planMorph(lastPath, path)) return;                   // the page will morph instead of sliding away
     const page = document.querySelector("#app .page");
     if (!page) return;
     page.classList.add("fx-leave", "fx-leave-" + direction(lastPath, path));
@@ -67,12 +68,13 @@ const FX = (() => {
     document.body.classList.toggle("fx-watching", depthOf(path) === 2);
     navGlide(changed);
     markTilt(app);
-    if (!changed || calm()) { countUp(app, true); return; }
+    if (!changed || calm()) { countUp(app, true); FEEL.afterRender(app, false); return; }
     app.classList.remove("fx-enter", "fx-fwd", "fx-back", "fx-side", "fx-first");
     void app.offsetWidth;                                          // restart the animations
     app.classList.add("fx-enter", "fx-" + dir);
     stagger(app);
     countUp(app);
+    FEEL.afterRender(app, true);
     clearTimeout(enterTimer);
     enterTimer = setTimeout(() => app.classList.remove("fx-enter", "fx-fwd", "fx-back", "fx-side", "fx-first"), 1900);
   }
