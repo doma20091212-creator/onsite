@@ -5,7 +5,7 @@
 // background, which is what makes the site open fast on weak dorm Wi-Fi. Without internet the
 // last saved copy is used. Database and YouTube requests are
 // never touched. Change VERSION when you change this file.
-const VERSION = "2026-11-13.1";
+const VERSION = "2026-11-13.2";
 const SHELL = `onsite-shell-${VERSION}`;
 const ASSETS = `onsite-assets-v1`;
 const CORE = [

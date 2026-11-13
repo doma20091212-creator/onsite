@@ -656,3 +656,11 @@ body.fx-lite .bar > span::after, body.fx-lite .lvl-bar > span::after { animation
 body.fx-lite .new-tag, body.fx-lite .new-dot, body.fx-lite .inv-get, body.fx-lite .badge.got .badge-ic, body.fx-lite .prize-m { animation: none; }
 body.fx-lite .rv { opacity: 1; translate: none; }
 body.fx-lite .fx-enter .fx-split .w > span { animation-duration: .45s; }
+
+/* --- admin: tap a leaderboard name to see who they invited --- */
+.inv-who-hint { margin: 4px 0 10px; font-size: 13px; color: var(--muted, #9AA3B2); }
+.lb-list li[data-inv-who] { cursor: pointer; transition: border-color .15s, background .15s; }
+.lb-list li[data-inv-who]:hover, .lb-list li[data-inv-who]:focus-visible { border-color: var(--blue-edge); outline: none; }
+.inv-who .vw-list li { grid-template-columns: 36px minmax(0, 1fr) auto minmax(0, 190px); }
+.inv-who .vw-school { color: var(--muted, #9AA3B2); white-space: normal; overflow: visible; text-overflow: clip; }
+@media (max-width: 720px) { .inv-who .vw-list li { grid-template-columns: 36px minmax(0, 1fr); } .inv-who .vw-side { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; grid-column: 2; } }

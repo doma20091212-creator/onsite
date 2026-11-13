@@ -127,7 +127,8 @@ function boardHtml() {
   const show = rows.slice(0, 20);
   if (me && !show.includes(me)) show.push(me);
   const medal = ["🥇", "🥈", "🥉"];
-  return `<ol class="lb-list inv-board">${show.map((r) => `<li class="${r.is_me ? "is-me" : ""} ${r.rank <= 3 ? "podium p" + r.rank : ""}">
+  const who = (id) => (isAdmin() && id ? ` data-inv-who="${esc(id)}" tabindex="0" role="button" aria-label="${esc(t("seeInvitees"))}"` : "");
+  return `${isAdmin() ? `<p class="inv-who-hint">👆 ${t("tapToSeeInvitees")}</p>` : ""}<ol class="lb-list inv-board">${show.map((r) => `<li class="${r.is_me ? "is-me" : ""} ${r.rank <= 3 ? "podium p" + r.rank : ""}"${who(r.user_id)}>
       <span class="lb-rank">${r.rank <= 3 ? medal[r.rank - 1] : num(r.rank)}</span>
       <span class="lb-name"><bdi>${esc(r.name || "—")}</bdi>${r.is_me ? ` <span class="status">${t("you")}</span>` : ""}${r.school ? `<small class="lb-school"><bdi>${esc(schoolLabel(r.school))}</bdi></small>` : ""}</span>
       <span class="lb-bar"><span class="bar thin"><span style="width:${Math.round((r.invites / top) * 100)}%"></span></span></span>
@@ -269,7 +270,7 @@ async function invitesTab() {
     </form>
     <section class="card pad">
       <h2>🏆 ${t("invBoard")} <span class="srow-meta">${t("adminFullNames")}</span></h2>
-      ${ranking.length ? `<ol class="lb-list">${ranking.slice(0, 15).map(([id, o], i) => `<li class="${i < 3 ? "podium p" + (i + 1) : ""}">
+      ${ranking.length ? `<p class="inv-who-hint">👆 ${t("tapToSeeInvitees")}</p><ol class="lb-list">${ranking.slice(0, 15).map(([id, o], i) => `<li class="${i < 3 ? "podium p" + (i + 1) : ""}" data-inv-who="${esc(id)}" tabindex="0" role="button" aria-label="${esc(t("seeInvitees"))}">
         <span class="lb-rank">${i < 3 ? ["🥇", "🥈", "🥉"][i] : num(i + 1)}</span>
         <span class="lb-name">${person(id)}<small class="lb-school">${esc(schoolLabel(prof[id]?.school))}</small></span>
         <span class="lb-ph">${M.phones?.[id] ? phoneText(M.phones[id]) + waLink(M.phones[id], prof[id]?.full_name || "", t("winnerMsg", { n: (prof[id]?.full_name || "").split(" ")[0] })) : ""}</span>
@@ -309,6 +310,56 @@ function bindInvites() {
     try { await API.setReferralStatus(b.dataset.rid, b.dataset.rstat); toast(t("saved")); route(); } catch (er) { b.disabled = false; fail(er); }
   };
 }
+
+// ---------------------------------------------------------------- admin: who did this person invite?
+// Admin only (the database only gives the full invite list to admins). Opens from either leaderboard.
+async function openInvitees(id) {
+  if (!isAdmin()) return;
+  try {
+    // what the dashboard already loaded is reused; the Invite page loads it here
+    const [refs, profs, phones] = await Promise.all([
+      M.referrals || API.listReferrals(), M.profiles?.length ? M.profiles : API.listProfiles(), M.phones || API.listPhones().catch(() => null),
+    ]);
+    M.referrals = refs; M.profiles = profs; M.phones = phones;
+    if (!INV.contest) await loadContest();
+  } catch (e) { fail(e); return; }
+  const prof = Object.fromEntries(M.profiles.map((p) => [p.id, p]));
+  const me = prof[id] || {}, list = M.referrals.filter((r) => r.referrer_id === id).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const counted = list.filter(countsFor).length, pts = counted * ((INV.contest || {}).points_per_invite || 0);
+  const ini = (n) => String(n || "?").trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const when = (iso) => new Date(iso).toLocaleString(I18N.lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const state = (r) => r.status === "rejected" ? `<span class="status s-req">${t("stRejectedAdmin")}</span>`
+    : countsFor(r) ? `<span class="status s-done">✓ ${t("stCounted")}</span>`
+    : `<span class="status s-new">${!M.phones?.[r.referred_id] ? t("stNoPhone") : t("stOutside")}</span>`;
+  const dlg = document.createElement("dialog");
+  dlg.className = "modal vw-modal inv-who";
+  dlg.innerHTML = `<div class="form vw">
+    <div class="modal-head"><h2>${t("inviteesOf", { n: `<bdi>${esc(me.full_name || "—")}</bdi>` })}</h2><button type="button" class="icon-btn" data-close aria-label="${t("cancel")}">✕</button></div>
+    <ul class="vw-sum">
+      <li><b>${num(list.length)}</b><span>${t("inviteesAll")}</span></li>
+      <li><b>${num(counted)}</b><span>${t("stCounted")}</span></li>
+      <li><b>${num(pts)}</b><span>${t("pts")}</span></li>
+    </ul>
+    ${list.length ? `<ol class="vw-list">${list.map((r) => { const p = prof[r.referred_id]; const nm = p?.full_name || ""; const ph = M.phones?.[r.referred_id];
+      return `<li><span class="att-av" aria-hidden="true">${esc(ini(nm))}</span>
+        <span class="vw-main"><b>${p ? `<bdi>${esc(nm || "—")}</bdi>` : `<i>${t("deletedAccount")}</i>`}</b><small class="vw-school"><bdi>${esc(schoolLabel(p?.school) || "—")}</bdi> · ${t("joinedOn", { d: when(r.created_at) })}</small></span>
+        <span class="vw-side">${state(r)}<span class="vw-contact">${ph ? phoneText(ph) + waLink(ph, nm, t("hiMsg", { n: nm.split(" ")[0] })) : `<small class="no-ph">${t("noPhone")}</small>`}</span></span>
+      </li>`; }).join("")}</ol>` : `<p class="empty">${t("noInviteesYet")}</p>`}
+  </div>`;
+  document.body.append(dlg);
+  dlg.showModal();
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+  dlg.addEventListener("click", (e) => { if (e.target === dlg || e.target.closest("[data-close]")) close(); });
+}
+document.addEventListener("click", (e) => {
+  const li = e.target.closest && e.target.closest("[data-inv-who]");
+  if (!li || e.target.closest("a, button")) return;          // phone / WhatsApp links keep working
+  openInvitees(li.dataset.invWho);
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-inv-who]")) { e.preventDefault(); openInvitees(e.target.dataset.invWho); }
+});
 
 // ---------------------------------------------------------------- People tab helpers
 const normPh = (p) => { let d = String(p || "").replace(/\D/g, ""); if (d.startsWith("0020")) d = "0" + d.slice(4); else if (d.startsWith("20") && d.length === 12) d = "0" + d.slice(2); return d; };
