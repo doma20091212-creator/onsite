@@ -142,21 +142,22 @@ theme();
 
 // ---------------------------------------------------------------- data
 async function loadAll() {
-  const [profile, subjects, sessions, progress] = await Promise.all([
+  // everything is asked for at once: on slow Wi-Fi the wait is one round trip, not eight
+  const soft = (p) => p.then((v) => ({ ok: true, v }), () => ({ ok: false }));
+  const [profile, subjects, sessions, progress, att, collabs, phone, ratings] = await Promise.all([
     API.getProfile(), API.listSubjects(), API.listSessions(), API.listMyProgress(),
+    soft(API.myAttendance()), soft(API.listCollabs()), soft(API.getMyPhone()), soft(API.listMyRatings()),
   ]);
   // Dorm-session history; empty if that part of the database isn't set up yet
-  S.attendance = await API.myAttendance().catch(() => []);
+  S.attendance = att.ok ? att.v : [];
   Object.assign(S, { profile, subjects, sessions, progress: Object.fromEntries(progress.map((p) => [p.session_id, p])) });
-  S.collabs = await API.listCollabs().catch(() => null);
-  try { S.myPhone = await API.getMyPhone(); S.phoneReady = true; } catch { S.myPhone = null; S.phoneReady = false; }
+  S.collabs = collabs.ok ? collabs.v : null;
+  S.myPhone = phone.ok ? phone.v : null; S.phoneReady = phone.ok;
   // the required-info step only switches on once both database updates (phones.sql, school.sql) are in
   S.infoReady = S.phoneReady && !!S.profile && "school" in S.profile;
   // session ratings switch on once ratings.sql is in
-  try { S.ratings = Object.fromEntries((await API.listMyRatings()).map((r) => [r.session_id, r])); S.ratingsReady = true; }
-  catch { S.ratings = {}; S.ratingsReady = false; }
-  await PLUS.loadExtras();
-  await loadContest();
+  S.ratings = ratings.ok ? Object.fromEntries(ratings.v.map((r) => [r.session_id, r])) : {}; S.ratingsReady = ratings.ok;
+  await Promise.all([PLUS.loadExtras(), loadContest()]);
 }
 
 // ---------------------------------------------------------------- ratings

@@ -46,7 +46,7 @@
   -->
   <script>
   (function () {
-    var FALLBACK = "2026-11-10.1";
+    var FALLBACK = "2026-11-13.1";
     var FILES = ["js/config.js", "js/i18n.js", "js/i18n-plus.js", "js/api.js", "js/player.js", "js/qr.js", "js/fx.js", "js/feel.js", "js/plus.js", "js/invite.js", "js/extra.js", "js/live.js", "js/app.js", "js/update.js"];
     function load(v) {
       window.ONSITE_VERSION = v;
@@ -62,19 +62,12 @@
         document.body.appendChild(s);
       });
     }
-    var done = false;
-    function go(v) { if (!done) { done = true; load(v || FALLBACK); } }
-    setTimeout(function () { go(); }, 4000); // slow network: don't wait forever
-    // Ask the server which version is live. It's a tiny script (version.js) rather than a
-    // fetch() because InfinityFree's bot check answers fetch() with its own page.
-    window.ONSITE_SET_VERSION = function (v) { go(v); };
-    try {
-      var vs = document.createElement("script");
-      vs.src = "version.js?t=" + Date.now();
-      vs.onerror = function () { go(); };
-      vs.onload = function () { setTimeout(function () { go(); }, 50); };   // loaded but didn't report: use FALLBACK
-      document.head.appendChild(vs);
-    } catch (e) { go(); }
+    // Start straight away with the newest version this browser knows about (never wait for the
+    // network first). js/update.js then asks the server (version.js) and shows a "new version"
+    // bar if there is a newer one.
+    var v = FALLBACK;
+    try { var k = localStorage.getItem("onsite.ver"); if (k && /^[\w.-]{6,24}$/.test(k) && k > v) v = k; } catch (e) {}
+    load(v);
   })();
   </script>
 </body>

@@ -1,9 +1,11 @@
 // ON-site Sessions: offline helper (service worker).
-// The page and code always come fresh from the server when there is internet ("network first"),
-// so new uploads show up straight away. Without internet, the last copy saved here is used,
-// which lets the site open on weak dorm Wi-Fi or offline. Database and YouTube requests are
+// The page itself (and version.js) come fresh from the server when there is internet, so new
+// uploads show up straight away. The code files carry their version in the address ("?v=…"):
+// a copy already saved for that exact version opens instantly and is quietly re-checked in the
+// background, which is what makes the site open fast on weak dorm Wi-Fi. Without internet the
+// last saved copy is used. Database and YouTube requests are
 // never touched. Change VERSION when you change this file.
-const VERSION = "2026-11-10.1";
+const VERSION = "2026-11-13.1";
 const SHELL = `onsite-shell-${VERSION}`;
 const ASSETS = `onsite-assets-v1`;
 const CORE = [
@@ -58,17 +60,36 @@ self.addEventListener("fetch", (e) => {
 
   const isPage = req.mode === "navigate";
   const isCode = /\.(js|css|json|webmanifest)$/.test(url.pathname) || isPage;
-  if (isCode) e.respondWith(networkFirst(req, isPage));
+  if (isCode && !isPage && url.searchParams.has("v")) e.respondWith(versioned(e, req));
+  else if (isCode) e.respondWith(networkFirst(req, isPage));
   else if (/\.(png|jpe?g|svg|webp|gif|ico)$/.test(url.pathname)) e.respondWith(staleWhileRevalidate(req));
 });
 
-async function networkFirst(req, isPage) {
+// A file asked for as "name?v=VERSION": the saved copy of that exact address is used at once.
+// A few seconds later it is fetched again in the background, so a copy saved in the middle of
+// an upload repairs itself by the next visit.
+async function versioned(e, req) {
+  const c = await caches.open(SHELL);
+  const hit = await c.match(req.url);
+  if (!hit) return networkFirst(req, false, c);
+  e.waitUntil((async () => {
+    await new Promise((r) => setTimeout(r, 5000));
+    try {
+      const r = await fetch(req.url, { cache: "no-cache" });       // "no-cache" = ask the server; unchanged files cost almost nothing
+      if (await good(r, req.url)) { await c.put(req.url, r.clone()); await c.put(stripV(req.url), r); }
+    } catch {}
+  })());
+  return hit;
+}
+
+async function networkFirst(req, isPage, exact) {
   const c = await caches.open(SHELL);
   const saved = async () => (isPage && (await c.match("index.html"))) || (await c.match(stripV(req.url))) || (await caches.match(req, { ignoreSearch: true }));
   try {
-    const r = await Promise.race([fetch(req, { cache: "no-store" }), timeout(isPage ? 6000 : 8000)]);
+    const r = await Promise.race([fetch(req, { cache: "no-store" }), timeout(isPage ? 5000 : 8000)]);
     if (await good(r, req.url)) {
       c.put(isPage ? "index.html" : stripV(req.url), r.clone());
+      if (exact) exact.put(req.url, r.clone());                    // remember this exact version too
       return r;
     }
     // Host is down (502/503…): keep the site working from the saved copy.

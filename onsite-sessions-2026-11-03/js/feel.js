@@ -10,6 +10,7 @@
 // All of it is off in Calm mode / reduced motion, and the cursor effects only run with a mouse.
 const FEEL = (() => {
   const calm = () => FX.calm();
+  const lite = () => FX.lite();     // slow device: keep the feel, drop the expensive extras
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const BLUE = "#8DB8FF";
 
@@ -30,6 +31,7 @@ const FEEL = (() => {
     ring.className = "fx-ring"; ring.style.cssText = `left:${x}px;top:${y}px;--c:${color};--s:${size}`;
     L.append(ring); setTimeout(() => ring.remove(), 700);
     const base = Math.atan2(dy, dx);
+    if (lite()) drops = 0;
     for (let i = 0; i < drops; i++) {
       const a = base + (Math.random() - 0.5) * 1.5, d = (12 + Math.random() * 20) * size, s = 3 + Math.random() * 3;
       const dr = document.createElement("i");
@@ -43,7 +45,7 @@ const FEEL = (() => {
   const MAG = ".btn, .pill-btn, .icon-btn, .chip, .tabs button, .mainnav a, .avatar, .brand, .ts-chip, .srch-sub, .seg button, .ann-x";
   const CARD = ".tilt, .srow, .pl, .mini";
   const items = new Map();          // element -> spring state
-  let px = 0, py = 0, raf = 0, lastT = 0;
+  let px = 0, py = 0, raf = 0, lastT = 0, moved = null;
 
   function pick(t) {
     if (!t || !t.closest) return null;
@@ -94,6 +96,7 @@ const FEEL = (() => {
   function frame(now) {
     const dt = Math.min(0.034, (now - lastT) / 1000 || 0.016); lastT = now;
     let alive = false;
+    if (moved) pointerStep();
     items.forEach((it) => {
       const el = it.el;
       if (!el.isConnected) { items.delete(el); return; }
@@ -119,7 +122,7 @@ const FEEL = (() => {
   // ------------------------------------------------------------ light that follows the cursor
   let light = null, lx = 0, ly = 0, lightOn = false;
   function lightStep() {
-    if (!lightOn) return false;
+    if (!lightOn || lite()) return false;
     if (!light || !light.isConnected) {
       const bg = document.querySelector(".fx-bg"); if (!bg) return false;
       light = document.createElement("span"); light.className = "fx-cursor"; bg.append(light); lx = px; ly = py;
@@ -130,15 +133,17 @@ const FEEL = (() => {
   }
   // one shared overlay draws a glowing border on whichever flat card is under the cursor
   const EDGE = ".card, .srow, .kpi, .acc-item, .mrow, .stats li, .lb-list li, .new-card, .ann, .live-card";
-  let edge = null, edgeFor = null, edgeRad = "";
+  let edge = null, edgeFor = null, edgeW = 0, edgeH = 0;
   function edgeMove(t) {
+    if (lite()) return;
     const el = t && t.closest ? t.closest(EDGE) : null;
     if (!el || el.closest("dialog, .tilt, .srch") || el.matches(".rv")) return edgeHide();
     const app = document.getElementById("app");
     if (!edge || !edge.isConnected) { edge = document.createElement("span"); edge.className = "fx-edge"; edge.setAttribute("aria-hidden", "true"); app.append(edge); edgeFor = null; }
     const r = el.getBoundingClientRect();
-    if (edgeFor !== el) { edgeFor = el; edgeRad = getComputedStyle(el).borderRadius; edge.style.borderRadius = edgeRad; }
-    edge.style.left = r.left + "px"; edge.style.top = r.top + "px"; edge.style.width = r.width + "px"; edge.style.height = r.height + "px";
+    if (edgeFor !== el) { edgeFor = el; edge.style.borderRadius = getComputedStyle(el).borderRadius; edgeW = edgeH = 0; }
+    if (Math.abs(r.width - edgeW) > 0.5 || Math.abs(r.height - edgeH) > 0.5) { edgeW = r.width; edgeH = r.height; edge.style.width = r.width + "px"; edge.style.height = r.height + "px"; }
+    edge.style.transform = `translate3d(${r.left.toFixed(1)}px, ${r.top.toFixed(1)}px, 0)`;
     edge.style.setProperty("--ex", (px - r.left).toFixed(0) + "px"); edge.style.setProperty("--ey", (py - r.top).toFixed(0) + "px");
     edge.classList.add("on");
   }
@@ -146,19 +151,24 @@ const FEEL = (() => {
 
   document.addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse" || calm()) return;
-    px = e.clientX; py = e.clientY; lightOn = true;
-    const c = pick(e.target);
+    px = e.clientX; py = e.clientY; lightOn = true; moved = e.target;
+    kick();
+  }, { passive: true });
+  // at most once per frame, however fast the mouse reports
+  function pointerStep() {
+    const t = moved; moved = null;
+    if (!t || calm()) return;
+    const c = pick(t);
     if (c && !items.has(c)) add(c);
     else if (c) { const it = items.get(c); if (!it.held) { it.held = true; it.t0 = performance.now(); c.classList.add("is-mag"); } }
     items.forEach(update);
-    edgeMove(e.target);
-    kick();
-  }, { passive: true });
+    edgeMove(t);
+  }
   document.addEventListener("pointerdown", (e) => {            // a click lets go at once (no splash): the press itself is the feedback
     if (e.pointerType !== "mouse") return;
     items.forEach((it) => { if (it.held && it.btn) { it.tx *= 0.3; it.ty *= 0.3; } });
   }, { passive: true });
-  window.addEventListener("scroll", () => { releaseAll(); edgeHide(); onScroll(); }, { passive: true });
+  window.addEventListener("scroll", () => { if (items.size) releaseAll(); if (edgeFor) edgeHide(); onScroll(); }, { passive: true });
   document.documentElement.addEventListener("pointerleave", () => { releaseAll(); edgeHide(); lightOn = false; });
   window.addEventListener("blur", releaseAll);
 
@@ -188,14 +198,21 @@ const FEEL = (() => {
   document.addEventListener("pointercancel", unpress, { passive: true });
 
   // ------------------------------------------------------------ topbar: condensed when scrolled + reading progress
-  let scrollRaf = 0;
+  // Only two tiny elements are touched while scrolling (the bar and its progress line), and
+  // only when their value really changes, so scrolling never re-styles the page.
+  let scrollRaf = 0, bar = null, prog = null, wasScrolled = null, lastSp = "", maxScroll = 0, maxAt = 0;
   function onScroll() {
     if (scrollRaf) return;
     scrollRaf = requestAnimationFrame(() => {
       scrollRaf = 0;
-      const max = document.documentElement.scrollHeight - innerHeight;
-      document.body.classList.toggle("is-scrolled", scrollY > 8);
-      document.documentElement.style.setProperty("--sp", max > 240 ? clamp(scrollY / max, 0, 1).toFixed(4) : "0");
+      if (!bar || !bar.isConnected) { bar = document.querySelector(".topbar"); prog = null; wasScrolled = null; lastSp = ""; }
+      if (!bar) return;
+      if (!prog || !prog.isConnected) { prog = document.createElement("i"); prog.className = "fx-prog"; prog.setAttribute("aria-hidden", "true"); bar.append(prog); }
+      const y = scrollY, on = y > 8, now = performance.now();
+      if (on !== wasScrolled) { wasScrolled = on; bar.classList.toggle("is-scrolled", on); }
+      if (now - maxAt > 400) { maxAt = now; maxScroll = document.documentElement.scrollHeight - innerHeight; }   // page height: re-read now and then, not every frame
+      const sp = maxScroll > 240 ? clamp(y / maxScroll, 0, 1).toFixed(3) : "0";
+      if (sp !== lastSp) { lastSp = sp; prog.style.transform = `scaleX(${sp})`; }
     });
   }
 
@@ -225,7 +242,7 @@ const FEEL = (() => {
   let io = null;
   function reveal(root) {
     if (io) { io.disconnect(); io = null; }
-    if (calm() || !("IntersectionObserver" in window)) return;
+    if (calm() || lite() || !("IntersectionObserver" in window)) return;
     const vh = innerHeight, list = [];
     root.querySelectorAll(".page .fx-st, .page .card, .page .block > h2, .page .new-row").forEach((el) => {
       if (el.parentElement && el.parentElement.matches(".new-row")) return;                         // a sideways row appears as one piece
@@ -250,6 +267,24 @@ const FEEL = (() => {
 
   // ------------------------------------------------------------ shared-element page morphs
   let lastLink = null, lastLinkAt = 0, pending = null, named = [];
+  // Morphs cost the most of anything here. Each one is timed; if two in a row stutter on this
+  // device, they are switched off (for a week) and pages change with the quick slide instead.
+  let morphOff = false, morphSlow = 0;
+  try { const v = localStorage.getItem("onsite.nomorph"); morphOff = !!v && Date.now() - +v < 7 * 864e5; } catch {}
+  function timeMorph(vt) {
+    const gaps = []; let last = 0, on = true;
+    const tick = (now) => { if (!on) return; if (last) gaps.push(now - last); last = now; requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    const end = () => {
+      on = false;
+      if (gaps.length < 4 || document.hidden) return;
+      gaps.sort((a, b) => a - b);
+      const slow = gaps[gaps.length >> 1] > 30 || gaps[gaps.length - 1] > 140;      // choppy overall, or one long freeze
+      morphSlow = slow ? morphSlow + 1 : 0;
+      if (morphSlow >= 2) { morphOff = true; try { localStorage.setItem("onsite.nomorph", String(Date.now())); } catch {} }
+    };
+    vt.finished.then(end, end);
+  }
   document.addEventListener("click", (e) => {
     const a = e.target.closest && e.target.closest('a[href^="#/"]');
     if (a) { lastLink = a; lastLinkAt = performance.now(); }
@@ -264,7 +299,7 @@ const FEEL = (() => {
   // (the old page then skips its slide-away).
   function planMorph(from, to) {
     pending = null; clearNames();
-    if (calm() || !document.startViewTransition || from === null || from === to) return false;
+    if (calm() || lite() || morphOff || !document.startViewTransition || from === null || from === to) return false;
     const a = seg(from), b = seg(to), ka = a[0] || "", kb = b[0] || "";
     if (!KINDS.includes(ka) || !KINDS.includes(kb) || a.length > 2 || b.length > 2) return false;
     const link = lastLink && lastLink.isConnected && performance.now() - lastLinkAt < 1500 ? lastLink : null;
@@ -278,6 +313,7 @@ const FEEL = (() => {
     } else if (ka === "watch" && kb !== "watch") {
       p.video = name(document.getElementById("player"), "m-video");
     }
+    if (!p.card && !p.video) { clearNames(); return false; }      // nothing to morph: the normal quick slide is lighter
     pending = p;
     return true;
   }
@@ -305,6 +341,7 @@ const FEEL = (() => {
         app.classList.add("fx-morph");
         fn(); tagNew(p);
       });
+      timeMorph(vt);
       const done = () => { clearNames(); setTimeout(() => app.classList.remove("fx-morph"), 1200); };
       vt.finished.then(done, done);
       return vt.updateCallbackDone.catch(() => {});
@@ -315,7 +352,7 @@ const FEEL = (() => {
   function afterRender(root, changed) {
     splitWords(root);
     if (changed) reveal(root);
-    edgeHide(); onScroll();
+    edgeHide(); maxAt = 0; onScroll();
   }
 
   return { planMorph, commit, afterRender, splash, releaseAll };

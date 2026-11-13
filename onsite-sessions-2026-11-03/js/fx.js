@@ -7,6 +7,41 @@ const FX = (() => {
   const pref = () => { try { return localStorage.getItem("onsite.motion") || "full"; } catch { return "full"; } };
   const calm = () => mq.matches || pref() === "calm";
   const lowPower = (navigator.hardwareConcurrency || 4) <= 2 || !!(navigator.connection && navigator.connection.saveData);
+  // "Lite": the device can't keep up, so the expensive extras (moving background, cursor light,
+  // page morphs, scroll reveals) switch themselves off. Decided by measuring real frames, see watchSpeed().
+  const LITE_KEY = "onsite.lite";
+  let liteOn = lowPower;
+  try { const v = localStorage.getItem(LITE_KEY); if (v && Date.now() - +v < 7 * 864e5) liteOn = true; } catch {}
+  const lite = () => liteOn;
+  function setLite(on) {
+    liteOn = on;
+    document.body.classList.toggle("fx-lite", on);
+    try { on ? localStorage.setItem(LITE_KEY, String(Date.now())) : localStorage.removeItem(LITE_KEY); } catch {}
+  }
+  // Times ~2 seconds of frames while the page is in use. Mostly-slow frames twice in a row => lite.
+  let speedRuns = 0, slowRuns = 0, watching = false;
+  function watchSpeed() {
+    if (watching || liteOn || calm() || speedRuns >= 4 || document.hidden) return;
+    watching = true;
+    const gaps = []; let last = 0, t0 = 0;
+    const tick = (now) => {
+      if (document.hidden) { watching = false; return; }
+      if (!t0) t0 = now;
+      if (last) gaps.push(now - last);
+      last = now;
+      if (now - t0 < 2000) return requestAnimationFrame(tick);
+      watching = false; speedRuns++;
+      const ok = gaps.filter((g) => g < 400);                    // ignore the odd long stall (tab switch, GC)
+      if (ok.length < 20) { slowRuns++; }
+      else {
+        ok.sort((a, b) => a - b);
+        const med = ok[ok.length >> 1], p80 = ok[Math.floor(ok.length * 0.8)];
+        if (med > 30 || p80 > 45) slowRuns++; else slowRuns = 0;   // under ~33 fps typical, or 1 frame in 5 under ~22 fps
+      }
+      if (slowRuns >= 2) setLite(true);
+    };
+    requestAnimationFrame(tick);
+  }
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const fine = () => matchMedia("(hover: hover) and (pointer: fine)").matches;
   let lastPath = null, prevNav = null, enterTimer = 0;
@@ -17,10 +52,11 @@ const FX = (() => {
   const GLYPHS = ["π", "∑", "Δ", "∫", "λ", "√x", "Aa", "ض", "H₂O", "F=ma", "x²", "∞", "DNA", "%", "≈", "Ω", "ع", "E=mc²"];
   function ambient() {
     document.body.classList.toggle("fx-calm", calm());
+    document.body.classList.toggle("fx-lite", liteOn);
     if (document.querySelector(".fx-bg")) return;
     const bg = document.createElement("div");
     bg.className = "fx-bg"; bg.setAttribute("aria-hidden", "true");
-    const n = lowPower ? 6 : 12;
+    const n = innerWidth < 720 ? 5 : 8;
     const floats = Array.from({ length: n }, (_, i) => {
       const g = GLYPHS[(i * 7) % GLYPHS.length];
       const x = Math.round(((i + 0.5) / n) * 100 + (Math.random() * 8 - 4));
@@ -31,16 +67,11 @@ const FX = (() => {
     }).join("");
     bg.innerHTML = `<span class="fx-blob b1"></span><span class="fx-blob b2"></span><span class="fx-blob b3"></span><span class="fx-dots"></span>${floats}`;
     document.body.prepend(bg);
-    // gentle parallax with the mouse (desktop only)
-    let raf = 0;
-    window.addEventListener("pointermove", (e) => {
-      if (calm() || !fine() || raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        bg.style.setProperty("--px", ((e.clientX / innerWidth) - 0.5).toFixed(3));
-        bg.style.setProperty("--py", ((e.clientY / innerHeight) - 0.5).toFixed(3));
-      });
-    }, { passive: true });
+    // measure how the device copes while it is really being used: scrolling and moving around
+    let st = 0;
+    const poke = () => { if (!st && !liteOn) st = setTimeout(() => { st = 0; watchSpeed(); }, 60); };
+    window.addEventListener("scroll", poke, { passive: true });
+    window.addEventListener("pointermove", poke, { passive: true });
     document.addEventListener("visibilitychange", () => document.body.classList.toggle("fx-hidden", document.hidden));
   }
 
@@ -259,10 +290,11 @@ const FX = (() => {
   function setMotion(v) {
     try { localStorage.setItem("onsite.motion", v); } catch {}
     document.body.classList.toggle("fx-calm", calm());
+    if (v === "full" && !lowPower) { setLite(false); speedRuns = slowRuns = 0; }   // asked for everything: try again, and re-measure
   }
 
   if (document.body) ambient(); else document.addEventListener("DOMContentLoaded", ambient);
   mq.addEventListener && mq.addEventListener("change", () => document.body.classList.toggle("fx-calm", calm()));
 
-  return { calm, pref, setMotion, beforeRender, afterRender, countUp, confetti, cheer, celebrate, skeleton, bootSkeleton, swap, flash, bump, buzz, stagger };
+  return { calm, lite, pref, setMotion, beforeRender, afterRender, countUp, confetti, cheer, celebrate, skeleton, bootSkeleton, swap, flash, bump, buzz, stagger };
 })();

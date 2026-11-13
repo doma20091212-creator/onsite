@@ -18,7 +18,11 @@
         document.head.appendChild(s);
         s.onload = () => setTimeout(() => s.remove(), 0);
       });
-      if (v && v !== current) show();
+      if (v && v !== current) {
+        // remember it, so the next visit starts on the new version at once
+        if (v > current) { try { localStorage.setItem("onsite.ver", v); } catch {} }
+        show();
+      }
     } catch {}
   }
 
@@ -39,4 +43,5 @@
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
   window.addEventListener("focus", check);
   setInterval(check, 5 * 60 * 1000);
+  setTimeout(check, 2500);          // and once shortly after opening
 })();
